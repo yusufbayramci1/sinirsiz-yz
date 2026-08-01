@@ -15,7 +15,7 @@ except:
 
 # Gemini ve GitHub Bağlantıları
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro')  # Model düzeltildi
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
@@ -86,4 +86,3 @@ if user_input:
                     st.success(f"💾 **Yeni bilgi kalıcı hafızama kaydedildi:** {yeni_ogrenilen}")
             except Exception as e:
                 st.error(f"Bir hata oluştu: {e}")
-
