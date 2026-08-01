@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import google.generativeai as genai
 from github import Github
+import re
 
 st.set_page_config(page_title="Sınırsız YZ", page_icon="🧠")
 
@@ -15,7 +16,7 @@ except:
 
 # Gemini ve GitHub Bağlantıları
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')  # Model düzeltildi
+model = genai.GenerativeModel('gemini-1.5-flash') 
 g = Github(GITHUB_TOKEN)
 repo = g.get_repo(REPO_NAME)
 
@@ -43,9 +44,9 @@ if user_input:
     Sen her şeyi yapabilen, öğrenebilen otonom bir yapay zekasın. 
     Kalıcı Hafızan (Geçmişte öğrendiklerin): {json.dumps(hafiza_icerik, ensure_ascii=False)}
     
-    Kullanıcının mesajına en iyi şekilde cevap ver. Eğer kullanıcı sana YENİ, KALICI bir bilgi öğretiyorsa, gelecekte hatırlaman gereken bir detay (örneğin adını, sevdiği bir rengi, projesini vb.) söylüyorsa bunu 'yeni_bilgi' kısmına yaz. Sadece normal bir sohbet ediyorsa 'yeni_bilgi' kısmını BOŞ BIRAK.
+    Kullanıcının mesajına en iyi şekilde cevap ver. Eğer kullanıcı sana YENİ, KALICI bir bilgi öğretiyorsa, gelecekte hatırlaman gereken bir detay söylüyorsa bunu 'yeni_bilgi' kısmına yaz. Sadece normal bir sohbet ediyorsa 'yeni_bilgi' kısmını BOŞ BIRAK.
     
-    YANITINI AŞAĞIDAKİ GİBİ SADECE JSON FORMATINDA VER, BAŞKA METİN YAZMA:
+    YANITINI AŞAĞIDAKİ GİBİ SADECE JSON FORMATINDA VER:
     {{
         "cevap": "Kullanıcıya vereceğin samimi yanıt",
         "yeni_bilgi": "Öğrendiğin yeni bilgi cümlesi veya boş bırak"
@@ -54,19 +55,20 @@ if user_input:
 
     with st.chat_message("assistant"):
         with st.spinner("Gemini düşünüyor..."):
-            
             sohbet_gecmisi = [{"role": "user", "parts": [sistem_mesaji]}]
             for m in st.session_state.mesajlar:
                 role = "user" if m["role"] == "user" else "model"
                 sohbet_gecmisi.append({"role": role, "parts": [m["content"]]})
                 
             try:
-                cevap_raw = model.generate_content(
-                    sohbet_gecmisi,
-                    generation_config=genai.types.GenerationConfig(response_mime_type="application/json")
-                )
+                cevap_raw = model.generate_content(sohbet_gecmisi)
                 
-                sonuc = json.loads(cevap_raw.text)
+                # Gemini'nin fazladan ekleyebileceği kod etiketlerini temizle
+                metin = cevap_raw.text
+                metin = re.sub(r'```json\n?', '', metin)
+                metin = re.sub(r'```\n?', '', metin)
+                
+                sonuc = json.loads(metin.strip())
                 yz_cevabi = sonuc.get("cevap", "Bir hata oluştu.")
                 yeni_ogrenilen = sonuc.get("yeni_bilgi", "")
 
@@ -85,4 +87,4 @@ if user_input:
                     )
                     st.success(f"💾 **Yeni bilgi kalıcı hafızama kaydedildi:** {yeni_ogrenilen}")
             except Exception as e:
-                st.error(f"Bir hata oluştu: {e}")
+                st.error(f"Bir hata oluştu: {e}\n\nHam Çıktı: {cevap_raw.text if 'cevap_raw' in locals() else 'Yok'}")
